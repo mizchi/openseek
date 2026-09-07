@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desktop · real component replay</title>
+<link rel="stylesheet" href="../../dev/viewer.css">
+<link rel="stylesheet" href="../../app.css">
+<style>
+body { display:flex; flex-direction:column; }
+#replay { flex:none; max-height:38vh; overflow:auto; padding:12px 24px; border-bottom:1px solid var(--color-text-secondary); font:14px/1.45 system-ui; }
+#replay p { margin:6px 0; }
+#replay button { border:1px solid var(--color-text-secondary); padding:5px 12px; margin:4px 8px 4px 0; border-radius:6px; }
+#replay button:disabled { opacity:.4; }
+#replay pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; }
+#replay summary { cursor:pointer; }
+#app { flex:1; min-height:0; height:auto; }
+</style>
+<div id="replay"></div>
+<div id="app"></div>
+<script src="../../dev/xterm.js"></script>
+<script type="module">
+import './transport.js';
+const script = document.createElement('script');
+script.src = '../../target/replay.js';
+document.body.append(script);
+</script>
+</html>
