@@ -45,7 +45,10 @@ fn assistant_view(
     )
   })
   let has_activity = reasoning is Some(_) || !calls.is_empty()
-  if !finished && has_activity && message is Some(message) {
+  // Until a response commits, its prose may be the answer rather than tool
+  // narration. Keep it readable even while retained reasoning is folded.
+  let fold_message = !live && !finished && has_activity
+  if fold_message && message is Some(message) {
     activity.push(message)
   }
   if !calls.is_empty() {
@@ -79,11 +82,11 @@ fn assistant_view(
     } else if calls.any(call => call.outcome is Pending(..)) {
       summary.push(@html.span(class="activity-label", " · Pending"))
     }
-    // This is a clipped excerpt, not a generated summary. A final answer is
-    // never reused here: it belongs outside the disclosure.
+    // This is a clipped excerpt, not a generated summary. Answer text, live
+    // or final, belongs outside the disclosure and is not repeated here.
     let preview = match reasoning {
       Some(text) if !text.is_blank() => Some(text)
-      _ => if finished { None } else { prose }
+      _ => if fold_message { prose } else { None }
     }
     if preview is Some(text) && !text.is_blank() {
       summary.push(@html.span(class="activity-preview", " · " + text))
@@ -95,7 +98,7 @@ fn assistant_view(
       ]),
     )
   }
-  if (finished || !has_activity) && message is Some(message) {
+  if !fold_message && message is Some(message) {
     parts.push(message)
   }
   @html.div(class="step", parts)
