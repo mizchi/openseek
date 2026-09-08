@@ -5,7 +5,7 @@ using the replay's synthetic OpenSeek events. They are not mockups or evidence
 that real tools ran.
 
 - `before.jpg`: main at `66b50a737a404b4a8876bef371a9a41b7bb918f8`.
-- `after-expanded.jpg`: PR transcript renderer and styles at `5ceae83`, activity expanded.
+- `after-expanded.jpg`: PR transcript renderer and styles at `00009e3`, activity expanded.
 - `after-collapsed.jpg`: the same PR state with its activity collapsed.
 
 The before build restored all three production files changed by the PR from

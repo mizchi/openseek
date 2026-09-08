@@ -15,7 +15,9 @@ The accepted design groups prompt and answer, uses the existing final Copy
 footer as the exchange boundary, and folds a whole work response under its
 verbatim text preview, with step/count at the trailing edge. The preview is
 bounded to 120 Unicode characters; the disclosure has a concise accessible name.
-Expanding shows the full text once in the same position, with tool evidence below.
+Expanding shows the full text once in the same position and typography, with tool
+evidence below. Click the text to open or close the activity; dragging to select
+expanded text and activating Markdown links keep the disclosure open.
 Step commit clocks and repeated ordinals are absent.
 Send timestamps are available on hover/focus (visible on devices without hover).
 Tool elapsed time is omitted because the shared projection has no reliable
