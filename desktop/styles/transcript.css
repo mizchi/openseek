@@ -491,14 +491,32 @@
 
 /* Send time belongs beneath the prompt, without separating its answer. */
 .turn-rule {
-  display: flex;
-  justify-content: flex-end;
+  position: relative;
+  height: 0;
   margin-top: -8px;
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
 }
 .turn-rule:empty {
   display: none;
+}
+
+.turn-rule .turn-time {
+  position: absolute;
+  right: 0;
+  top: 0;
+  opacity: 0;
+}
+.msg.user:hover + .turn-rule .turn-time,
+.msg.user:focus-within + .turn-rule .turn-time,
+.turn-rule:hover .turn-time { opacity: 1; }
+.msg.user:focus-visible {
+  outline: 1px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+/* Touch users cannot hover to inspect a prompt's send time. */
+@media (hover: none) {
+  .turn-rule .turn-time { opacity: 1; }
 }
 
 .msg-body {
@@ -837,12 +855,7 @@
   gap: 20px;
 }
 
-/* One model step's work: a heading (or thought fold) carrying the ordinal
-   and commit instant, then every tool call on display as its own row. Flush
-   with the agent's prose, not indented: the work is the agent's, and an
-   indent under a user bubble would read as the user's. Only reasoning sits
-   behind a fold; a quiet guide line groups the call rows without turning
-   them into a card. */
+/* Runtime notices retain their position in the transcript. */
 .activity-row {
   min-width: 0;
   display: grid;
@@ -864,23 +877,6 @@
   display: none;
 }
 
-/* The visible guide belongs to the body, while this empty part of the native
-   summary extends its hit area over the guide. A click therefore toggles only
-   the details element that owns that line, including when disclosures nest. */
-.activity {
-  position: relative;
-}
-.activity[open] > .activity-summary::before {
-  content: "";
-  position: absolute;
-  z-index: 1;
-  top: 1.5em;
-  bottom: 0;
-  left: -5px;
-  width: 12px;
-  cursor: pointer;
-}
-
 .activity-summary {
   display: flex;
   align-items: baseline;
@@ -891,76 +887,40 @@
 .activity-summary:hover {
   color: var(--color-text-secondary);
 }
-.activity-text {
+/* Work-step disclosures share the transcript's text edge. Only the excerpt
+   shrinks; the factual step, count, and state remain readable. */
+.activity-step-group > .activity-summary {
+  gap: 4px;
+  font-size: var(--font-size-xs);
+}
+.activity-step-group > .activity-summary::before {
+  content: "▸";
+  flex: none;
+}
+.activity-step-group[open] > .activity-summary::before { content: "▾"; }
+.activity-label { flex: none; }
+.activity-preview {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.activity-text::before {
-  content: "▸ ";
+.activity-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
 }
-.activity[open] > .activity-summary .activity-text::before {
-  content: "▾ ";
-}
-
-/* The model-step ordinal stays in the transcript's neutral hierarchy so step
-   status does not compete with selection, primary actions, or failures. Tabular
-   numerals in a fixed right-aligned column hold every `·` on the same x as the
-   count crosses #9 → #10. */
-.activity-step {
-  display: inline-block;
-  min-width: 3ch;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted);
-  transition: color 0.15s ease;
-}
-
-/* Hover and disclosure raise contrast without introducing another blue state. */
-.activity-summary:hover .activity-step,
-.activity[open] > .activity-summary .activity-step {
-  color: var(--color-text-secondary);
-}
-.activity:has(> .activity-summary .activity-step) > .activity-body {
-  border-left-color: var(--color-border);
-}
-
-/* The step heading when the step went straight to tools: the same ordinal and
-   instant columns the thought fold's summary carries, on a plain line — there
-   is nothing to disclose, every call below is already on display. The hidden
-   marker reserves exactly the lead the summary's `▸ ` takes (same font, same
-   text), so `#N` and the instant line up in one column across both header
-   forms; the gap between them is the markup's real space, as in the summary. */
 .activity-heading {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
-.activity-heading::before {
-  content: "▸ ";
-  visibility: hidden;
-}
 
-/* When the step committed, in the summary's second fixed column, right after
-   the ordinal — which a real space in the markup separates it from, not a
-   margin here, so the gap survives being copied or read aloud. No color of its
-   own: it inherits the summary's, so it is exactly as legible as the line it
-   belongs to and brightens with it on hover. Setting one would only have
-   restated the same token, or made the row's least important item its highest
-   contrast. Tabular numerals so the seconds digits do not shift against the
-   rows above and below — reading the gaps between steps is the whole point of
-   showing them. */
+/* Runtime notice commit time; tool activity deliberately omits this clock. */
 .activity-time {
   color: var(--color-text-faint);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
-}
-
-.activity-body {
-  display: grid;
-  gap: 14px;
-  padding: 12px 0 4px 16px;
-  border-left: 2px solid var(--color-border);
 }
 
 /* compaction checkpoint between turns: a quiet labeled fold with the

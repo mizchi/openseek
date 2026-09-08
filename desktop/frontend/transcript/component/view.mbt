@@ -1,24 +1,7 @@
 ///|
-/// One provider response as the transcript shows it: its thought behind a
-/// fold, its prose as a bubble, and every tool call on display as its own
-/// one-line row (`tool_request_view`), expandable to that call's arguments and
-/// output — in the order the model produced them, so a step that ran ten
-/// tools reads as ten scannable rows after the narration that announced them.
-/// Only reasoning stays behind a fold: a step that opens with a thought
-/// carries the ordinal and commit instant on that fold's summary
-/// ("#2 14:32:10 · Thought"), and a numbered step that goes straight to
-/// tools puts the same columns on a plain heading line instead. The open
-/// state of every disclosure is the browser's (`<details>`), so a reader's
-/// toggle survives re-renders and the run growing while live.
-///
-/// The response still streaming renders through this same view (`live`), so
-/// nothing shown live restyles when its durable event lands: the thought
-/// stays plain text until it completes, and the prose bubble is marked
-/// streaming until the commit replaces it.
-///
-/// Failures need no badge up here: a failed call's own row is visible and
-/// carries its own literal `failed` marker. Its potentially large arguments
-/// and output stay folded by default, like every other call.
+/// Fold a work response as one activity, keeping its evidence inspectable and
+/// its final answer outside the fold. Native disclosure state belongs to the
+/// reader; incoming fragments must not force it open or closed.
 fn assistant_view(
   on_open : (String) -> @cmd.Cmd,
   prose? : String,
@@ -33,105 +16,87 @@ fn assistant_view(
   reasoning_complete? : Bool = true,
   subrun? : SubrunLink,
 ) -> @html.Html {
-  // The step ordinal is its own span so it can carry the accent and a fixed
-  // numeral column, then the instant in a second fixed column: the run reads
-  // as a table. The instant belongs beside the ordinal rather than out at the
-  // row's right edge — the reason to show it at all is the gap to the step
-  // above and below, and comparing a column is the eye's job only when
-  // nothing variable-width sits between its entries and their anchor.
-  let header : Array[@html.Html] = []
-  let stamp = step_stamp(ts?)
-  if step_label is Some(label) {
-    header.push(@html.span(class="activity-step", label))
-    // A real space, not a CSS margin, and only when the instant follows it: the
-    // gap has to exist in the text as well, or the accessible name and anything
-    // copied out of the row read "#1Committed 14:32:10".
-    if stamp is Some(_) {
-      header.push(@html.text(" "))
-    }
-  }
-  if stamp is Some(stamp) {
-    header.push(stamp)
-  }
-  // The header rides the thought fold's summary when the step opens with
-  // reasoning, keeping the common step's one-line "#2 · Thought" lead. A step
-  // that goes straight to tools gets a plain heading line instead: a call
-  // row's summary belongs to that call alone. Prose alone carries no heading.
-  let lead : Array[@html.Html] = []
+  let activity : Array[@html.Html] = []
   if reasoning is Some(text) {
-    let thinking = live && !reasoning_complete
-    let label = if thinking { "Thinking…" } else { "Thought" }
-    let summary : Array[@html.Html] = []
-    if header.is_empty() {
-      // The separator introduces the label only when something precedes it:
-      // a Codex thought with no ordinal and no stamp is the label alone.
-      summary.push(@html.text(label))
-    } else {
-      summary.append(header)
-      summary.push(@html.text(" · \{label}"))
-    }
-    let body = if thinking {
-      // Do not parse an unfinished Markdown document on every provider token.
-      // Newlines are preserved by CSS while fragments are still arriving.
-      @html.div(
-        class="msg-content activity-thinking activity-thinking-live",
-        @html.text(text),
-      )
-    } else {
-      @html.div(
-        class="msg-content markdown activity-thinking",
-        @markdown.markdown_nodes(text, open_file=on_open),
-      )
-    }
-    lead.push(
-      @html.details(class="activity", open=live, [
-        @html.summary(class="activity-summary", [
-          @html.span(class="activity-text", summary),
-        ]),
-        @html.div(class="activity-body", [body]),
-      ]),
+    activity.push(
+      if live && !reasoning_complete {
+        // Keep incomplete reasoning as text until Markdown is complete.
+        @html.div(
+          class="msg-content activity-thinking activity-thinking-live",
+          @html.text(text),
+        )
+      } else {
+        @html.div(
+          class="msg-content markdown activity-thinking",
+          @markdown.markdown_nodes(text, open_file=on_open),
+        )
+      },
     )
-  } else if !header.is_empty() && !calls.is_empty() {
-    lead.push(@html.div(class="activity-heading", header))
   }
-  let work = if calls.is_empty() {
-    None
-  } else {
-    Some(
+  let message = prose.map(text => {
+    assistant_message_view(
+      text,
+      on_open,
+      assistant_name,
+      is_danger=false,
+      completed_at?=if finished { ts } else { None },
+      show_actions=finished,
+      streaming=live,
+    )
+  })
+  let has_activity = reasoning is Some(_) || !calls.is_empty()
+  if !finished && has_activity && message is Some(message) {
+    activity.push(message)
+  }
+  if !calls.is_empty() {
+    activity.push(
       @html.div(
         class="activity-work",
         tool_run_views(calls, sequence?, subrun?),
       ),
     )
   }
-  // The prose bubble separates the thought from the work it announced; a
-  // response without prose keeps both under one quiet guide line.
   let parts : Array[@html.Html] = []
-  if prose is Some(text) {
-    if !lead.is_empty() {
-      parts.push(@html.div(class="activity-row", lead))
+  if has_activity {
+    let label = match step_label {
+      Some(label) => "Step " + label.replace(old="#", new="")
+      None => "Activity"
+    }
+    let summary : Array[@html.Html] = [
+      @html.span(class="activity-label", label),
+    ]
+    if !calls.is_empty() {
+      let count = calls.length()
+      let noun = if count == 1 { "tool call" } else { "tool calls" }
+      summary.push(@html.span(class="activity-label", " · \{count} \{noun}"))
+    }
+    // A collapsed activity must not conceal a failure. Pending describes the
+    // call's recorded outcome; it does not claim a stopped run is still running.
+    if calls.any(call => call.outcome is Done(is_error=true, ..)) {
+      summary.push(@html.span(class="activity-label", " · Failed"))
+    } else if live {
+      summary.push(@html.span(class="activity-label", " · Running"))
+    } else if calls.any(call => call.outcome is Pending(..)) {
+      summary.push(@html.span(class="activity-label", " · Pending"))
+    }
+    // This is a clipped excerpt, not a generated summary. A final answer is
+    // never reused here: it belongs outside the disclosure.
+    let preview = match reasoning {
+      Some(text) if !text.is_blank() => Some(text)
+      _ => if finished { None } else { prose }
+    }
+    if preview is Some(text) && !text.is_blank() {
+      summary.push(@html.span(class="activity-preview", " · " + text))
     }
     parts.push(
-      assistant_message_view(
-        text,
-        on_open,
-        assistant_name,
-        is_danger=false,
-        completed_at?=if finished { ts } else { None },
-        show_actions=finished,
-        streaming=live,
-      ),
+      @html.details(class="activity activity-step-group", [
+        @html.summary(class="activity-summary", summary),
+        @html.div(class="activity-step-body", activity),
+      ]),
     )
-    if work is Some(work) {
-      parts.push(@html.div(class="activity-row", [work]))
-    }
-  } else {
-    if work is Some(work) {
-      lead.push(work)
-    }
-    if !lead.is_empty() {
-      parts.push(@html.div(class="activity-row", lead))
-    }
+  }
+  if (finished || !has_activity) && message is Some(message) {
+    parts.push(message)
   }
   @html.div(class="step", parts)
 }
@@ -680,7 +645,12 @@ fn user_message_view(
       body.push(@html.div(class="msg-content", inline_code_nodes(content)))
   }
   // The overview rail and scroll watcher share this stable turn anchor.
-  @html.div(class="msg user", id?=anchor, [@html.div(class="user-bubble", body)])
+  @html.div(
+    class="msg user",
+    id?=anchor,
+    attrs=@html.Attrs::build().tabindex(0),
+    [@html.div(class="user-bubble", body)],
+  )
 }
 
 ///|
