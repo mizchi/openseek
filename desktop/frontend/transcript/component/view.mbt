@@ -107,7 +107,16 @@ fn assistant_view(
     }
     let content : Array[@html.Html] = []
     if !lead.is_empty() {
-      content.push(@html.div(class="activity-lead", lead))
+      content.push(
+        @html.div(
+          class="activity-lead",
+          attrs=@html.Attrs::build().on_click(event => {
+            collapse_activity_from_text(event)
+            @cmd.none
+          }),
+          lead,
+        ),
+      )
     }
     if !activity.is_empty() {
       content.push(@html.div(class="activity-step-body", activity))

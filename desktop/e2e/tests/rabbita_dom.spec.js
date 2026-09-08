@@ -877,6 +877,10 @@ test('a model step folds its thought, prose, and tool evidence together', async 
   await expect(summary).toContainText('first thought');
   await expect(summary).toHaveAccessibleName('Step 1 · 1 tool call');
   const excerpt = await summary.locator('.activity-preview').textContent();
+  const previewStyle = await summary.locator('.activity-preview').evaluate(element => {
+    const style = getComputedStyle(element);
+    return { size: style.fontSize, color: style.color, lineHeight: style.lineHeight };
+  });
   expect(Array.from(excerpt).length).toBeLessThanOrEqual(121);
   expect(excerpt).toContain('🔎');
   expect(excerpt).toMatch(/…$/);
@@ -892,6 +896,10 @@ test('a model step folds its thought, prose, and tool evidence together', async 
   await expect(summary.locator('.activity-preview')).not.toBeVisible();
   await expect(summary).toHaveAccessibleName('Step 1 · 1 tool call');
   await expect(thought).toBeVisible();
+  expect(await thought.evaluate(element => {
+    const style = getComputedStyle(element);
+    return { size: style.fontSize, color: style.color, lineHeight: style.lineHeight };
+  })).toEqual(previewStyle);
   await expect(prose).toHaveText('I will inspect the project.');
   await expect(prose).toBeVisible();
   await expect(tool).toContainText('read moon.mod');
@@ -901,6 +909,47 @@ test('a model step folds its thought, prose, and tool evidence together', async 
   await summary.press('Enter');
   await summary.press('Enter');
   await expect(activity.getByText('moon.mod', { exact: true })).toBeVisible();
+  expect(app.pageErrors).toEqual([]);
+});
+
+test('activity text toggles consistently while selection and file links keep it open', async ({ page }) => {
+  const app = new DesktopBrowserHarness(page);
+  app.sessionEvents = [
+    { sequence: 1, item: { kind: 'user', payload: { content: 'Show the browser fixture activity controls' } } },
+    { sequence: 2, item: { kind: 'assistant', payload: {
+      content: 'I will inspect the project.\n\n[Source](src/main.mbt:12)',
+      tool_calls: [{ id: 'c1', name: 'read', arguments: '{"path":"src/main.mbt"}' }],
+    } } },
+  ];
+  await app.install();
+  await app.goto();
+  await app.openSession();
+  const activity = page.locator('.activity-step-group');
+  const summary = activity.locator(':scope > summary');
+  const preview = summary.locator('.activity-preview');
+  await preview.click();
+  const text = activity.getByText('I will inspect the project.', { exact: true });
+  await expect(text).toBeVisible();
+  await text.click();
+  await expect(activity).not.toHaveAttribute('open', '');
+  await expect(summary).toBeFocused();
+  await preview.click();
+
+  // Drag across ordinary prose: the resulting click must preserve the selection.
+  const box = await text.boundingBox();
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 100, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect(activity).toHaveAttribute('open', '');
+  expect(await page.evaluate(() => document.getSelection().toString())).not.toBe('');
+  await page.evaluate(() => document.getSelection().removeAllRanges());
+
+  await activity.getByTitle('Open src/main.mbt:12').click();
+  await expect(activity).toHaveAttribute('open', '');
+  await expect.poll(() => app.requests.some(request =>
+    request.method === 'host.open_path' && request.params?.path === 'src/main.mbt:12'))
+    .toBe(true);
   expect(app.pageErrors).toEqual([]);
 });
 
