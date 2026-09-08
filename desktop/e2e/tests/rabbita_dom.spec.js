@@ -724,6 +724,7 @@ test('runtime notices keep the compact result-row presentation', async ({ page }
 
 test('a model step folds its thought, prose, and tool evidence together', async ({ page }) => {
   const app = new DesktopBrowserHarness(page);
+  const reasoning = '🔎 first thought with supporting evidence. '.repeat(200) + 'End of reasoning.';
   app.sessionEvents = [
     {
       sequence: 1,
@@ -738,7 +739,7 @@ test('a model step folds its thought, prose, and tool evidence together', async 
         kind: 'assistant',
         payload: {
           content: 'I will inspect the project.',
-          reasoning_content: 'first thought',
+          reasoning_content: reasoning,
           tool_calls: [{ id: 'c1', name: 'read', arguments: '{"path":"moon.mod"}' }],
         },
       },
@@ -767,14 +768,22 @@ test('a model step folds its thought, prose, and tool evidence together', async 
   const summary = activity.locator(':scope > summary');
   await expect(summary).toContainText('Step 1 · 1 tool call');
   await expect(summary).toContainText('first thought');
+  await expect(summary).toHaveAccessibleName('Step 1 · 1 tool call');
+  const excerpt = await summary.locator('.activity-preview').textContent();
+  expect(Array.from(excerpt).length).toBeLessThanOrEqual(121);
+  expect(excerpt).toContain('🔎');
+  expect(excerpt).toMatch(/…$/);
+  expect(excerpt).not.toContain('End of reasoning.');
   const thought = activity.locator('.activity-thinking');
   const prose = activity.locator('.msg .msg-content.markdown');
   const tool = activity.locator('.tool-call-summary');
   await expect(thought).not.toBeVisible();
   await expect(prose).not.toBeVisible();
   await expect(tool).not.toBeVisible();
-  await summary.click();
-  await expect(thought).toHaveText('first thought');
+  await summary.press('Enter');
+  await expect(thought).toHaveText(reasoning);
+  await expect(summary.locator('.activity-preview')).not.toBeVisible();
+  await expect(summary).toHaveAccessibleName('Step 1 · 1 tool call');
   await expect(thought).toBeVisible();
   await expect(prose).toHaveText('I will inspect the project.');
   await expect(prose).toBeVisible();
@@ -782,8 +791,8 @@ test('a model step folds its thought, prose, and tool evidence together', async 
   await expect(tool).toBeVisible();
   await tool.click();
   await expect(activity.getByText('moon.mod', { exact: true })).toBeVisible();
-  await summary.click();
-  await summary.click();
+  await summary.press('Enter');
+  await summary.press('Enter');
   await expect(activity.getByText('moon.mod', { exact: true })).toBeVisible();
   expect(app.pageErrors).toEqual([]);
 });
