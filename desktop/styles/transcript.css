@@ -901,18 +901,22 @@
   grid-column: 1 / -1;
   grid-row: 1;
   align-self: start;
-  font-size: var(--font-size-xs);
-  line-height: 1.6;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-text-secondary);
 }
 .activity-step-group > .activity-summary::before {
   content: "▸";
   grid-column: 1;
+  color: var(--color-text-muted);
 }
 .activity-step-group[open] > .activity-summary::before { content: "▾"; }
 .activity-metadata {
   grid-column: 3;
   grid-row: 1;
   white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 .activity-preview {
   grid-column: 2;
@@ -928,6 +932,10 @@
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
+  cursor: pointer;
+}
+.activity-lead .msg-content {
+  color: var(--color-text-secondary);
 }
 .activity-step-body {
   grid-column: 2 / -1;
