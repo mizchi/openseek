@@ -17,9 +17,10 @@ fn assistant_view(
   reasoning_complete? : Bool = true,
   subrun? : SubrunLink,
 ) -> @html.Html {
+  let lead : Array[@html.Html] = []
   let activity : Array[@html.Html] = []
-  if reasoning is Some(text) {
-    activity.push(
+  if reasoning is Some(text) && !text.is_blank() {
+    lead.push(
       if live && !reasoning_complete {
         // Keep incomplete reasoning as text until Markdown is complete.
         @html.div(
@@ -45,12 +46,16 @@ fn assistant_view(
       streaming=live,
     )
   })
-  let has_activity = reasoning is Some(_) || !calls.is_empty()
+  let has_activity = !lead.is_empty() || !calls.is_empty()
   // Until a response commits, its prose may be the answer rather than tool
   // narration. Keep it readable even while retained reasoning is folded.
   let fold_message = !live && !finished && has_activity
   if fold_message && message is Some(message) {
-    activity.push(message)
+    if lead.is_empty() {
+      lead.push(message)
+    } else {
+      activity.push(message)
+    }
   }
   if !calls.is_empty() {
     activity.push(
@@ -66,22 +71,20 @@ fn assistant_view(
       Some(label) => "Step " + label.replace(old="#", new="")
       None => "Activity"
     }
-    let summary : Array[@html.Html] = [
-      @html.span(class="activity-label", label),
-    ]
+    let mut metadata = label
     if !calls.is_empty() {
       let count = calls.length()
       let noun = if count == 1 { "tool call" } else { "tool calls" }
-      summary.push(@html.span(class="activity-label", " · \{count} \{noun}"))
+      metadata += " · \{count} \{noun}"
     }
     // A collapsed activity must not conceal a failure. Pending describes the
     // call's recorded outcome; it does not claim a stopped run is still running.
     if calls.any(call => call.outcome is Done(is_error=true, ..)) {
-      summary.push(@html.span(class="activity-label", " · Failed"))
+      metadata += " · Failed"
     } else if live {
-      summary.push(@html.span(class="activity-label", " · Running"))
+      metadata += " · Running"
     } else if calls.any(call => call.outcome is Pending(..)) {
-      summary.push(@html.span(class="activity-label", " · Pending"))
+      metadata += " · Pending"
     }
     // This is a clipped excerpt, not a generated summary. Answer text, live
     // or final, belongs outside the disclosure and is not repeated here.
@@ -89,16 +92,45 @@ fn assistant_view(
       Some(text) if !text.is_blank() => Some(text)
       _ => if fold_message { prose } else { None }
     }
-    if preview is Some(text) && !text.is_blank() {
-      summary.push(@html.span(class="activity-preview", " · " + text))
+    // Bound the actual DOM text, not just its paint. Iteration counts Unicode
+    // characters, so clipping cannot leave half a surrogate pair in the label.
+    let excerpt = match preview {
+      Some(text) if !text.is_blank() => {
+        let cut = String::from_iter(text.iter().take(120))
+        if cut.length() < text.length() {
+          cut + "…"
+        } else {
+          cut
+        }
+      }
+      _ => "Tool activity"
+    }
+    let content : Array[@html.Html] = []
+    if !lead.is_empty() {
+      content.push(@html.div(class="activity-lead", lead))
+    }
+    if !activity.is_empty() {
+      content.push(@html.div(class="activity-step-body", activity))
     }
     parts.push(
-      @html.details(class="activity activity-step-group", [
-        @html.summary(class="activity-summary", summary),
-        @html.div(class="activity-step-body", activity),
-      ]),
+      @html.details(
+        class="activity activity-step-group" +
+          (if lead.is_empty() { "" } else { " activity-has-lead" }),
+        [
+          @html.summary(
+            class="activity-summary",
+            attrs=@html.Attrs::build().aria_label(metadata),
+            [
+              @html.span(class="activity-preview", excerpt),
+              @html.span(class="activity-metadata", metadata),
+            ],
+          ),
+          ..content,
+        ],
+      ),
     )
   }
+
   if !fold_message && message is Some(message) {
     parts.push(message)
   }
