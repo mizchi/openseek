@@ -25,3 +25,9 @@ native platform behavior. Both providers reuse the changed transcript component.
 Exploratory A/B versions are preserved at tag
 `desktop-transcript-prototype-exploration`. The final harness lives only on
 `codex/desktop-next-replay`; production changes belong to PR #1351.
+
+Streaming regression: start an exchange → Stream reasoning → Stream next chunk.
+Leave the reasoning disclosure closed. The answer must remain visible as more
+chunks arrive, and no completion footer appears before Finish. Open the fold
+to inspect reasoning without hiding the live answer. This uses the real
+reasoning_delta → assistant_delta update path that the original fixture missed.

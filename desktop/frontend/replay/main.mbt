@@ -18,6 +18,7 @@ extern "js" fn is_application_frame() -> Bool =
 enum Msg {
   Start
   Tool
+  Reason
   Stream
   Finish
   Fail
@@ -64,6 +65,7 @@ fn main {
             let action = match msg {
               Start => "start"
               Tool => "tool"
+              Reason => "reason"
               Stream => "stream"
               Finish => "finish"
               Fail => "fail"
@@ -111,6 +113,11 @@ fn main {
             "Show tool activity",
           ),
           @html.button(
+            disabled=!state.running || state.streamed,
+            on_click=emit(Reason),
+            "Stream reasoning",
+          ),
+          @html.button(
             disabled=!state.running,
             on_click=emit(Stream),
             "Stream next chunk",
@@ -137,7 +144,7 @@ fn main {
         @html.details([
           @html.summary("Synthetic events and scope"),
           @html.p(
-            "OpenSeek host events and history are fixtures; no command runs. The real MoonBit app renders messages, tools, streaming and errors. Only transcript spacing and end-line CSS are experimental. Narrow viewport resizes the actual app iframe; use Hide sidebar if needed. Codex, reconnects and native notifications are outside this replay.",
+            "OpenSeek host events and history are fixtures; no command runs. The real MoonBit app renders messages, tools, streaming and errors. Work activities fold as a group; live answer text remains visible outside them. Narrow viewport resizes the actual app iframe; use Hide sidebar if needed. Codex, reconnects and native notifications are outside this replay.",
           ),
           @html.pre(state.events),
         ]),

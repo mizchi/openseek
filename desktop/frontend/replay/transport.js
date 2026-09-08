@@ -97,6 +97,8 @@ globalThis.__desktopReplay = {
       commit('assistant',{content:'I’ll inspect the transcript styles before checking the layout.',tool_calls:[{id:'read-'+turn,name:'read',arguments:JSON.stringify({path:'desktop/styles/transcript.css'})}]});
       commit('tool_result',{tool_call_id:'read-'+turn,tool_name:'read',content:'.stream { gap: 14px; }\n.assistant-message-actions { display: flex; }',brief:'Read transcript.css',is_error:false});
       engine({event:'agent_step',step:2});
+    }else if(action==='reason'){
+      engine({event:'reasoning_delta',content:'I’ll check the transcript grouping before explaining the result. '});
     }else if(action==='stream'){
       const chunks=['The prompt and answer remain grouped. ', 'The code block should scroll within the message, while ordinary prose wraps. ', '\n\nThe ending is still provisional while this response is streaming.'];
       engine({event:'assistant_delta',content:chunks[chunk%chunks.length]});chunk++;
