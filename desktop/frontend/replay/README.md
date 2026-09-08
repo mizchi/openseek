@@ -13,7 +13,10 @@ requests, and results. Try narrow viewport and keyboard focus on a user prompt.
 
 The accepted design groups prompt and answer, uses the existing final Copy
 footer as the exchange boundary, and folds a whole work response under its
-step/count/verbatim preview. Step commit clocks and repeated ordinals are absent.
+verbatim text preview, with step/count at the trailing edge. The preview is
+bounded to 120 Unicode characters; the disclosure has a concise accessible name.
+Expanding shows the full text once in the same position, with tool evidence below.
+Step commit clocks and repeated ordinals are absent.
 Send timestamps are available on hover/focus (visible on devices without hover).
 Tool elapsed time is omitted because the shared projection has no reliable
 execution timing. Approval controls and terminal errors remain separate surfaces.
