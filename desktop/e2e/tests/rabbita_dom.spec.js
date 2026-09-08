@@ -770,6 +770,7 @@ test('tool-call tabs keep focus-driven scrolling inside the transcript', async (
   await expect(transcript.locator('.tool-call-summary')).toContainText('Print <browser> fixture');
   const tabs = transcript.locator('.tool-call-tabs');
   const originalJson = tabs.getByText('Original JSON', { exact: true });
+  await transcript.locator('.activity-summary').click();
   await transcript.locator('.tool-call-summary').click();
   await transcript.evaluate(node => {
     node.scrollTop = node.scrollHeight;
@@ -828,7 +829,7 @@ test('runtime notices keep the compact result-row presentation', async ({ page }
   expect(app.pageErrors).toEqual([]);
 });
 
-test('a model step shows its thought, then its prose, then its tool rows', async ({ page }) => {
+test('a model step folds its thought, prose, and tool evidence together', async ({ page }) => {
   const app = new DesktopBrowserHarness(page);
   app.sessionEvents = [
     {
@@ -867,14 +868,71 @@ test('a model step shows its thought, then its prose, then its tool rows', async
   await app.goto();
   await app.openSession();
 
-  // One durable response is one step, whose parts keep the model's order:
-  // the thought it had, the prose it said, then the calls that prose announced.
   const step = page.locator('.step');
   await expect(step).toHaveCount(1);
-  await expect(step.locator(':scope > *')).toHaveClass(['activity-row', 'msg', 'activity-row']);
-  await expect(step.locator('.activity-row').first().locator('.activity-text')).toHaveText('#1 · Thought');
-  await expect(step.locator('.msg .msg-content.markdown')).toContainText('I will inspect the project.');
-  await expect(step.locator('.activity-row').last().locator('.tool-call-text')).toHaveText('read moon.mod');
+  const activity = step.locator('details.activity-step-group');
+  const summary = activity.locator(':scope > summary');
+  await expect(summary).toContainText('Step 1 · 1 tool call');
+  await expect(summary).toContainText('first thought');
+  const thought = activity.locator('.activity-thinking');
+  const prose = activity.locator('.msg .msg-content.markdown');
+  const tool = activity.locator('.tool-call-summary');
+  await expect(thought).not.toBeVisible();
+  await expect(prose).not.toBeVisible();
+  await expect(tool).not.toBeVisible();
+  await summary.click();
+  await expect(thought).toHaveText('first thought');
+  await expect(thought).toBeVisible();
+  await expect(prose).toHaveText('I will inspect the project.');
+  await expect(prose).toBeVisible();
+  await expect(tool).toContainText('read moon.mod');
+  await expect(tool).toBeVisible();
+  await tool.click();
+  await expect(activity.getByText('moon.mod', { exact: true })).toBeVisible();
+  await summary.click();
+  await summary.click();
+  await expect(activity.getByText('moon.mod', { exact: true })).toBeVisible();
+  expect(app.pageErrors).toEqual([]);
+});
+
+test('reasoning-enabled answer text stays visible while streaming', async ({ page }) => {
+  const app = new DesktopBrowserHarness(page);
+  app.sessionEvents = [{
+    sequence: 1,
+    item: { kind: 'user', payload: { content: 'Show the browser fixture reasoning stream' } },
+  }];
+  await app.install();
+  await app.goto();
+  await app.openSession();
+  app.notify('agent.started', {
+    run_id: 'reasoning-run', session: 'session-1',
+    session_root: '/workspace/.openseek', model: 'deepseek-v4-pro', max_steps: 1000,
+  });
+  app.notify('agent.event', {
+    run_id: 'reasoning-run', session: 'session-1',
+    event: { event: 'reasoning_delta', content: 'Consider the evidence first.' },
+  });
+  const activity = page.locator('.activity-step-group');
+  await expect(activity.locator(':scope > summary')).toContainText('Consider the evidence first.');
+  await expect(activity).not.toHaveAttribute('open', '');
+  app.notify('agent.event', {
+    run_id: 'reasoning-run', session: 'session-1',
+    event: { event: 'assistant_delta', content: 'The answer is arriving' },
+  });
+  const answer = page.locator('.msg.streaming .msg-content');
+  await expect(answer).toHaveText('The answer is arriving');
+  await expect(answer).toBeVisible();
+  await expect(activity).not.toHaveAttribute('open', '');
+  app.notify('agent.event', {
+    run_id: 'reasoning-run', session: 'session-1',
+    event: { event: 'assistant_delta', content: ' in two chunks.' },
+  });
+  await expect(answer).toHaveText('The answer is arriving in two chunks.');
+  await expect(answer).toBeVisible();
+  await expect(page.locator('.msg.streaming .assistant-message-actions')).toHaveCount(0);
+  await activity.locator(':scope > summary').click();
+  await expect(activity.locator('.activity-thinking')).toHaveText('Consider the evidence first.');
+  await expect(answer).toBeVisible();
   expect(app.pageErrors).toEqual([]);
 });
 
