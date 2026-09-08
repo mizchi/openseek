@@ -65,3 +65,10 @@ desktop-dev:
 # Run the session viewer's Rabbita views in Chromium.
 viz-test-browser:
     just --justfile cmd/viz_app/justfile test-browser
+
+# Development-only real-component transcript review.
+replay:
+    moon build desktop/frontend/replay --target js
+    mkdir -p desktop/target
+    cp _build/js/debug/build/openseek_desktop/frontend/replay/replay.js desktop/target/replay.js
+    python3 -m http.server 5177 --bind 127.0.0.1

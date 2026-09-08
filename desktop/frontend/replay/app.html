@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desktop replay application</title>
+<link rel="stylesheet" href="../../dev/viewer.css">
+<script type="module">
+// Refresh every imported stylesheet; reloading only the manifest can retain
+// stale imports in a long-lived review tab.
+const revision = Date.now();
+const manifest = new URL('../../app.css', location.href);
+const css = await (await fetch(manifest, {cache:'no-store'})).text();
+for (const match of css.matchAll(/@import url\("([^"]+)"\);/g)) {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  const url = new URL(match[1], manifest);
+  url.searchParams.set('replay', String(revision));
+  link.href = url.href;
+  document.head.append(link);
+}
+</script>
+<div id="app"></div>
+<script type="module">
+import './transport.js';
+const script = document.createElement('script');
+script.src = '../../target/replay.js?replay=' + Date.now();
+document.body.append(script);
+</script>
+</html>
